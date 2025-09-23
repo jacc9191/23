@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inventario de Productos</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png" type="image/png">
+  <meta name="theme-color" content="#18e322">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2 id="tituloEditable" contenteditable="true">Inventario de Productos</h2>
+  <div class="header">
+    <input type="text" id="busqueda" placeholder="Buscar producto...">
+    <button id="toggleFormulario">Agregar nuevo producto</button>
+    <form id="formulario">
+      <input type="text" id="nombre" placeholder="Nombre del producto" required>
+      <input type="text" id="color" placeholder="Colores (separados por coma)" required>
+      <input type="text" id="talla" placeholder="Tallas (separadas por coma)" required>
+      <input type="number" id="precioPublico" placeholder="Precio público" required>
+      <input type="number" id="precioPermitido" placeholder="Precio permitido">
+      <input type="file" id="foto" accept="image/*">
+      <button type="submit">Agregar Producto</button>
+    </form>
+  </div>
+  <div class="productos" id="lista"></div>
+  <button id="exportExcel">Exportar a Excel</button>
+  <p id="totalInventario" style="text-align:center; font-weight:bold; margin-top:15px;">
+    Total en inventario: 0 unidades
+  </p>
+
+  <div id="notificaciones" class="notificaciones"></div>
+
+
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="js.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js")
+        .then(() => console.log("✅ Service Worker registrado"))
+        .catch(err => console.error("❌ Error en SW:", err));
+    }
+  </script>
+</body>
+</html>
