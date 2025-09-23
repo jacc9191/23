@@ -1,3 +1,5 @@
+
+
 // --- IndexedDB para guardar imágenes ---
 let db;
 const request = indexedDB.open("InventarioDB", 1);
@@ -18,10 +20,22 @@ request.onerror = function (e) {
   console.error("Error con IndexedDB", e);
 };
 
-// Guardar imagen en IndexedDB
-function guardarImagen(key, blob) {
-  const tx = db.transaction("imagenes", "readwrite");
-  tx.objectStore("imagenes").put(blob, key);
+
+
+// Guardar imagen en IndexedDB y ejecutar callback cuando termine
+function guardarImagen(key, file, callback) {
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const blob = new Blob([e.target.result], { type: file.type });
+    const tx = db.transaction("imagenes", "readwrite");
+    const store = tx.objectStore("imagenes");
+    const req = store.put(blob, key);
+
+    req.onsuccess = () => {
+      if (callback) callback();
+    };
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // Obtener imagen de IndexedDB
@@ -52,8 +66,11 @@ document.getElementById("toggleFormulario").addEventListener("click", () => {
   form.style.display = form.style.display === "none" ? "block" : "none";
 });
 
+// --- Guardar productos ---
 function guardarProductos() {
   localStorage.setItem("productos", JSON.stringify(productos));
+  // volver a sincronizar desde localStorage
+  productos = JSON.parse(localStorage.getItem("productos")) || [];
 }
 
 // --- Notificaciones ---
@@ -67,14 +84,12 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
   toast.textContent = mensaje;
   contenedor.appendChild(toast);
 
-  // Eliminar después de 3s
   setTimeout(() => {
     toast.remove();
   }, 3000);
 }
 
-
-// --- Mostrar productos + contador ---
+// --- Mostrar productos ---
 function mostrarProductos(filtro = "") {
   const lista = document.getElementById("lista");
   lista.innerHTML = "";
@@ -88,7 +103,6 @@ function mostrarProductos(filtro = "") {
     div.className = "producto";
     const estaAbierto = estadoAbierto[i] || false;
 
-    // Contar cantidades
     p.variantes.forEach(v => total += v.cantidad);
 
     let tabla = `
@@ -127,7 +141,6 @@ function mostrarProductos(filtro = "") {
       ${tabla}
     `;
 
-    // Recuperar imagen desde IndexedDB
     if (p.fotoKey) {
       obtenerImagen(p.fotoKey, (blob) => {
         if (blob) {
@@ -136,13 +149,12 @@ function mostrarProductos(filtro = "") {
         }
       });
     } else if (p.foto) {
-      document.getElementById(`img-${i}`).src = p.foto; // Compatibilidad con datos antiguos
+      document.getElementById(`img-${i}`).src = p.foto;
     }
 
     lista.appendChild(div);
   });
 
-  // Mostrar total
   document.getElementById("totalInventario").textContent =
     `Total en inventario: ${total} unidades`;
 
@@ -189,7 +201,6 @@ function eliminarProducto(i) {
   }
 }
 
-// --- Agregar producto ---
 document.getElementById("formulario").addEventListener("submit", e => {
   e.preventDefault();
 
@@ -209,40 +220,70 @@ document.getElementById("formulario").addEventListener("submit", e => {
 
   const fotoKey = `producto-${Date.now()}`;
 
- function agregarConFoto() {
-  productos.push({ nombre, precioPublico, precioPermitido, fotoKey, variantes });
-  guardarProductos();
+  function agregarConFoto() {
+    productos.push({ nombre, precioPublico, precioPermitido, fotoKey, variantes });
 
-  // abrir automáticamente el producto recién agregado
-  estadoAbierto[productos.length - 1] = true;
-  localStorage.setItem("estadoAbierto", JSON.stringify(estadoAbierto));
+    // 🔥 Guardar inmediatamente
+    localStorage.setItem("productos", JSON.stringify(productos));
 
-  mostrarProductos();
-  mostrarNotificacion("✅ Producto guardado con éxito");
+    estadoAbierto[productos.length - 1] = true;
+    localStorage.setItem("estadoAbierto", JSON.stringify(estadoAbierto));
 
-  document.getElementById("formulario").reset();
+    mostrarProductos();
+    console.log("Productos guardados:", productos);
+    console.log("LocalStorage ahora:", localStorage.getItem("productos"));
+
+    mostrarNotificacion("✅ Producto guardado con éxito");
+    document.getElementById("formulario").reset();
+  }
+
+  if (fotoInput.files.length) {
+    const file = fotoInput.files[0];
+    guardarImagen(fotoKey, file, () => {
+      agregarConFoto();
+    });
+  } else {
+    productos.push({
+      nombre,
+      precioPublico,
+      precioPermitido,
+      foto: "https://via.placeholder.com/100",
+      variantes
+    });
+
+    // 🔥 Guardar inmediatamente
+    localStorage.setItem("productos", JSON.stringify(productos));
+
+    estadoAbierto[productos.length - 1] = true;
+    localStorage.setItem("estadoAbierto", JSON.stringify(estadoAbierto));
+
+    mostrarProductos();
+    console.log("Productos guardados:", productos);
+    console.log("LocalStorage ahora:", localStorage.getItem("productos"));
+
+    document.getElementById("formulario").reset();
+    mostrarNotificacion("✅ Producto guardado con éxito");
+  }
+});
+
+
+// --- Resetear inventario ---
+function resetearInventario() {
+  if (confirm("⚠️ Esto borrará todos los productos e imágenes guardadas. ¿Seguro?")) {
+    localStorage.clear();
+
+    const req = indexedDB.deleteDatabase("InventarioDB");
+    req.onsuccess = () => {
+      console.log("IndexedDB eliminada correctamente");
+      mostrarNotificacion("✅ Inventario limpiado con éxito", "exito");
+      location.reload();
+    };
+    req.onerror = () => {
+      console.error("Error al eliminar IndexedDB");
+      mostrarNotificacion("❌ Error al limpiar inventario", "error");
+    };
+  }
 }
-
-if (fotoInput.files.length) {
-  const file = fotoInput.files[0];
-  guardarImagen(fotoKey, file);
-  agregarConFoto();
-} else {
-  // Compatibilidad: si no hay foto, usamos placeholder
-  productos.push({ nombre, precioPublico, precioPermitido, foto: "https://via.placeholder.com/100", variantes });
-  guardarProductos();
-
-  // abrir automáticamente el producto recién agregado
-  estadoAbierto[productos.length - 1] = true;
-  localStorage.setItem("estadoAbierto", JSON.stringify(estadoAbierto));
-
-  mostrarProductos();
-  document.getElementById("formulario").reset();
-  mostrarNotificacion("✅ Producto guardado con éxito");
-}
-
-}); // <- cierre correcto del addEventListener
-
 
 // --- Buscador ---
 document.getElementById("busqueda").addEventListener("input", (e) => {
@@ -289,4 +330,5 @@ function exportarAExcel() {
 document.getElementById("exportExcel").addEventListener("click", exportarAExcel);
 
 // --- Inicializar ---
+productos = JSON.parse(localStorage.getItem("productos")) || [];
 mostrarProductos();
