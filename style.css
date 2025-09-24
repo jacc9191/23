@@ -212,3 +212,25 @@ form {
   from {opacity: 1; transform: translateY(0);}
   to {opacity: 0; transform: translateY(-20px);}
 }
+
+.contenedor-boton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;  /* ocupa toda la pantalla */
+}
+
+.btn-eliminar {
+  padding: 12px 24px;
+  font-size: 18px;
+  border: none;
+  border-radius: 10px;
+  background-color: #e63946;
+  color: white;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-eliminar:hover {
+  background-color: #c53030;
+}
